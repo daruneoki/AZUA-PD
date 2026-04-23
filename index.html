@@ -1,0 +1,283 @@
+<AZUAPD html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PD罰金計算タブレット</title>
+
+<style>
+body { margin:0; font-family:sans-serif; background:#0b1220; color:#fff; }
+.header { padding:10px; background:#111827; border-bottom:2px solid #1f2937; }
+
+.layout { display:flex; height:calc(100vh - 60px); }
+
+.left {
+  flex:2;
+  padding:10px;
+  overflow-y:auto;
+  padding-bottom:150px;
+}
+
+.right {
+  flex:1;
+  padding:10px;
+  border-left:2px solid #1f2937;
+  background:#020617;
+  overflow-y:auto;
+}
+
+.grid {
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:6px;
+}
+
+.card {
+  padding:10px;
+  background:#1f2937;
+  border-radius:8px;
+  cursor:pointer;
+  font-size:12px;
+}
+
+.card.active { background:#22c55e; color:#000; }
+.card.disabled { background:#374151; opacity:0.4; pointer-events:none; }
+
+.presetBtn {
+  width:100%;
+  margin-bottom:5px;
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  background:#1f2937;
+  color:#fff;
+}
+
+.special input {
+  width:100%;
+  padding:10px;
+  margin-top:5px;
+  border-radius:6px;
+  border:none;
+  font-size:16px;
+}
+
+.result {
+  position:fixed;
+  bottom:10px;
+  left:10px;
+  right:10px;
+  background:#000;
+  padding:12px;
+  border-radius:10px;
+  border:2px solid #1f2937;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">🚓 PD罰金計算タブレット Ver1.00.00</div>
+
+<div class="layout">
+
+<!-- 左 -->
+<div class="left">
+
+<div class="grid" id="grid"></div>
+
+<div class="special">
+違法薬物 所持数
+<input type="number" id="drug" value="0" onchange="calc()">
+
+違法薬物素材 所持数
+<input type="number" id="material" value="0" onchange="calc()">
+
+業務妨害 罰金
+<input type="number" id="business" value="0" onchange="calc()">
+</div>
+
+</div>
+
+<!-- 右 -->
+<div class="right">
+
+<h3>プリセット</h3>
+<div id="presetArea"></div>
+
+</div>
+
+</div>
+
+<!-- 結果 -->
+<div class="result">
+💰 <span id="total">0</span>円　
+⏱ <span id="time">0</span>分
+<button onclick="resetAll()">リセット</button>
+</div>
+
+<script>
+let selected = new Set();
+
+const robberyGroup = ["軽強盗罪","準強盗罪","強盗罪","準重強盗罪","重強盗罪"];
+
+const crimes = [
+{ name:"軽強盗罪", fine:1000000, time:10 },
+{ name:"準強盗罪", fine:1500000, time:20 },
+{ name:"強盗罪", fine:2000000, time:20 },
+{ name:"準重強盗罪", fine:5000000, time:30 },
+{ name:"重強盗罪", fine:6000000, time:40 },
+
+{ name:"銃刀法違反", fine:500000, time:0 },
+{ name:"違法物所持罪", fine:500000, time:0 },
+{ name:"道路交通法違反", fine:200000, time:0 },
+{ name:"無免許運転罪", fine:200000, time:0 },
+{ name:"公務執行妨害罪", fine:500000, time:0 },
+
+{ name:"暴行罪", fine:200000, time:0 },
+{ name:"NPC殺人罪", fine:300000, time:0 },
+{ name:"車両窃盗罪", fine:300000, time:0 },
+
+{ name:"業務妨害罪", fine:0, time:60 },
+{ name:"詐欺罪", fine:10000000, time:0 },
+{ name:"プレイヤー殺人罪", fine:500000, time:15 },
+{ name:"誘拐拉致監禁罪", fine:500000, time:0 },
+
+{ name:"汚職収賄罪", fine:100000000, time:60 },
+{ name:"脅迫罪", fine:1000000, time:0 },
+{ name:"イベントテロ罪", fine:1000000000, time:60 },
+{ name:"警察署襲撃罪", fine:100000000, time:60 },
+
+{ name:"違法薬物所持罪", special:"drug" },
+{ name:"違法薬物素材所持罪", special:"material" }
+];
+
+const presets = {
+"軍事物資強奪":["強盗罪","銃刀法違反","公務執行妨害罪","NPC殺人罪"],
+"宝石店強盗":["強盗罪","銃刀法違反","公務執行妨害罪"],
+"パレト銀行強盗":["準重強盗罪","銃刀法違反","公務執行妨害罪"],
+"ボブキャット強盗":["準重強盗罪","銃刀法違反","公務執行妨害罪","NPC殺人罪"],
+"客船強盗":["準重強盗罪","銃刀法違反","公務執行妨害罪","NPC殺人罪"],
+"金庫強盗":["準重強盗罪","銃刀法違反","公務執行妨害罪"],
+"飛行場襲撃":["準重強盗罪","銃刀法違反","公務執行妨害罪","NPC殺人罪"],
+"アーティファクトヘイスト":["準重強盗罪","銃刀法違反","公務執行妨害罪","NPC殺人罪"],
+"ユニオンヘイスト":["重強盗罪","銃刀法違反","公務執行妨害罪"],
+"パシフィック銀行強盗":["重強盗罪","銃刀法違反","公務執行妨害罪"]
+};
+
+const grid = document.getElementById("grid");
+
+crimes.forEach((c,i)=>{
+  const div=document.createElement("div");
+  div.className="card";
+  div.innerHTML=c.special ? `${c.name}<br>数量計算` : `${c.name}<br>${c.fine.toLocaleString()}円`;
+  div.onclick=()=>toggle(i,div);
+  grid.appendChild(div);
+});
+
+const presetArea=document.getElementById("presetArea");
+
+Object.keys(presets).forEach(name=>{
+  const btn=document.createElement("button");
+  btn.className="presetBtn";
+  btn.textContent=name;
+  btn.onclick=()=>applyPreset(name);
+  presetArea.appendChild(btn);
+});
+
+function toggle(i,el){
+  if(selected.has(i)){
+    selected.delete(i);
+    el.classList.remove("active");
+  }else{
+    selected.add(i);
+    el.classList.add("active");
+  }
+  handleRobberyLock();
+  calc();
+}
+
+function handleRobberyLock(){
+  const selectedRobbery=[...selected].find(i=>robberyGroup.includes(crimes[i].name));
+
+  document.querySelectorAll(".card").forEach((el,i)=>{
+    const isRobbery=robberyGroup.includes(crimes[i].name);
+    if(selectedRobbery!==undefined){
+      if(isRobbery && i!==selectedRobbery){
+        el.classList.add("disabled");
+      }
+    }else{
+      el.classList.remove("disabled");
+    }
+  });
+}
+
+function applyPreset(name){
+  resetAll();
+  const list=presets[name];
+
+  document.querySelectorAll(".card").forEach((el,i)=>{
+    if(list.includes(crimes[i].name)){
+      selected.add(i);
+      el.classList.add("active");
+    }
+  });
+
+  handleRobberyLock();
+  calc();
+}
+
+function calc(){
+  let total=0;
+  let time=0;
+
+  selected.forEach(i=>{
+    const c=crimes[i];
+
+    // 薬物（150単位・最低1・繰り越しなし）
+    if(c.special==="drug"){
+      const v=Number(document.getElementById("drug").value);
+      if(v>0){
+        let units=Math.floor(v/150);
+        if(units===0) units=1;
+        total+=units*1000000;
+      }
+    }
+
+    // 素材（1000単位・最低1・繰り越しなし）
+    else if(c.special==="material"){
+      const v=Number(document.getElementById("material").value);
+      if(v>0){
+        let units=Math.floor(v/1000);
+        if(units===0) units=1;
+        total+=units*500000;
+      }
+    }
+
+    else{
+      total+=c.fine;
+      if(c.time>time) time=c.time;
+    }
+  });
+
+  // 業務妨害
+  if(selected.has(crimes.findIndex(c=>c.name==="業務妨害罪"))){
+    total+=Number(document.getElementById("business").value);
+  }
+
+  document.getElementById("total").textContent=total.toLocaleString();
+  document.getElementById("time").textContent=time;
+}
+
+function resetAll(){
+  selected.clear();
+  document.querySelectorAll(".card").forEach(el=>el.classList.remove("active","disabled"));
+  document.getElementById("drug").value=0;
+  document.getElementById("material").value=0;
+  document.getElementById("business").value=0;
+  calc();
+}
+</script>
+
+</body>
+</html>
