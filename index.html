@@ -1,4 +1,4 @@
-<AZUAPD html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -6,16 +6,29 @@
 <title>PD罰金計算タブレット</title>
 
 <style>
-body { margin:0; font-family:sans-serif; background:#0b1220; color:#fff; }
-.header { padding:10px; background:#111827; border-bottom:2px solid #1f2937; }
+body {
+  margin:0;
+  font-family:sans-serif;
+  background:#0b1220;
+  color:#fff;
+}
 
-.layout { display:flex; height:calc(100vh - 60px); }
+.header {
+  padding:10px;
+  background:#111827;
+  border-bottom:2px solid #1f2937;
+}
+
+.layout {
+  display:flex;
+  height:calc(100vh - 60px);
+}
 
 .left {
   flex:2;
   padding:10px;
   overflow-y:auto;
-  padding-bottom:150px;
+  padding-bottom:170px;
 }
 
 .right {
@@ -38,10 +51,19 @@ body { margin:0; font-family:sans-serif; background:#0b1220; color:#fff; }
   border-radius:8px;
   cursor:pointer;
   font-size:12px;
+  transition:0.2s;
 }
 
-.card.active { background:#22c55e; color:#000; }
-.card.disabled { background:#374151; opacity:0.4; pointer-events:none; }
+.card.active {
+  background:#22c55e;
+  color:#000;
+}
+
+.card.disabled {
+  background:#374151;
+  opacity:0.4;
+  pointer-events:none;
+}
 
 .presetBtn {
   width:100%;
@@ -51,15 +73,22 @@ body { margin:0; font-family:sans-serif; background:#0b1220; color:#fff; }
   border-radius:8px;
   background:#1f2937;
   color:#fff;
+  cursor:pointer;
+}
+
+.presetBtn:hover {
+  background:#2563eb;
 }
 
 .special input {
   width:100%;
   padding:10px;
   margin-top:5px;
+  margin-bottom:10px;
   border-radius:6px;
   border:none;
   font-size:16px;
+  box-sizing:border-box;
 }
 
 .result {
@@ -71,13 +100,93 @@ body { margin:0; font-family:sans-serif; background:#0b1220; color:#fff; }
   padding:12px;
   border-radius:10px;
   border:2px solid #1f2937;
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:center;
+  z-index:100;
+}
+
+.result button {
+  padding:8px 12px;
+  border:none;
+  border-radius:8px;
+  background:#1f2937;
+  color:white;
+  cursor:pointer;
+}
+
+/* 押収物モーダル */
+
+#oshuModal{
+  position:fixed;
+  inset:0;
+  background:#000;
+  z-index:9999;
+  display:none;
+  flex-direction:column;
+}
+
+.oshuTop{
+  height:60px;
+  background:#111827;
+  display:flex;
+  align-items:center;
+  padding:0 10px;
+  border-bottom:2px solid #1f2937;
+}
+
+.oshuTop button{
+  background:#1f2937;
+  color:white;
+  border:none;
+  padding:10px 16px;
+  border-radius:10px;
+  cursor:pointer;
+}
+
+.oshuContent{
+  flex:1;
+  overflow:auto;
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  padding:10px;
+}
+
+.oshuContent img{
+  width:100%;
+  max-width:1400px;
+  border-radius:12px;
+}
+
+/* スマホ */
+
+@media (max-width:768px){
+
+  .layout{
+    flex-direction:column;
+  }
+
+  .right{
+    border-left:none;
+    border-top:2px solid #1f2937;
+    max-height:300px;
+  }
+
+  .grid{
+    grid-template-columns:1fr;
+  }
+
 }
 </style>
 </head>
 
 <body>
 
-<div class="header">🚓 PD罰金計算タブレット Ver1.00.00</div>
+<div class="header">
+🚓 PD罰金計算タブレット Ver1.00.00
+</div>
 
 <div class="layout">
 
@@ -87,6 +196,7 @@ body { margin:0; font-family:sans-serif; background:#0b1220; color:#fff; }
 <div class="grid" id="grid"></div>
 
 <div class="special">
+
 違法薬物 所持数
 <input type="number" id="drug" value="0" onchange="calc()">
 
@@ -95,6 +205,7 @@ body { margin:0; font-family:sans-serif; background:#0b1220; color:#fff; }
 
 業務妨害 罰金
 <input type="number" id="business" value="0" onchange="calc()">
+
 </div>
 
 </div>
@@ -103,6 +214,7 @@ body { margin:0; font-family:sans-serif; background:#0b1220; color:#fff; }
 <div class="right">
 
 <h3>プリセット</h3>
+
 <div id="presetArea"></div>
 
 </div>
@@ -111,17 +223,46 @@ body { margin:0; font-family:sans-serif; background:#0b1220; color:#fff; }
 
 <!-- 結果 -->
 <div class="result">
+
 💰 <span id="total">0</span>円　
 ⏱ <span id="time">0</span>分
+
 <button onclick="resetAll()">リセット</button>
+
+<button onclick="openOshu()">
+📦 押収物確認
+</button>
+
+</div>
+
+<!-- 押収物 -->
+
+<div id="oshuModal">
+
+<div class="oshuTop">
+<button onclick="closeOshu()">← 閉じる</button>
+</div>
+
+<div class="oshuContent">
+<img src="oshu.png">
+</div>
+
 </div>
 
 <script>
+
 let selected = new Set();
 
-const robberyGroup = ["軽強盗罪","準強盗罪","強盗罪","準重強盗罪","重強盗罪"];
+const robberyGroup = [
+"軽強盗罪",
+"準強盗罪",
+"強盗罪",
+"準重強盗罪",
+"重強盗罪"
+];
 
 const crimes = [
+
 { name:"軽強盗罪", fine:1000000, time:10 },
 { name:"準強盗罪", fine:1500000, time:20 },
 { name:"強盗罪", fine:2000000, time:20 },
@@ -150,133 +291,287 @@ const crimes = [
 
 { name:"違法薬物所持罪", special:"drug" },
 { name:"違法薬物素材所持罪", special:"material" }
+
 ];
 
 const presets = {
-"軍事物資強奪":["強盗罪","銃刀法違反","公務執行妨害罪","NPC殺人罪"],
-"宝石店強盗":["強盗罪","銃刀法違反","公務執行妨害罪"],
-"パレト銀行強盗":["準重強盗罪","銃刀法違反","公務執行妨害罪"],
-"ボブキャット強盗":["準重強盗罪","銃刀法違反","公務執行妨害罪","NPC殺人罪"],
-"客船強盗":["準重強盗罪","銃刀法違反","公務執行妨害罪","NPC殺人罪"],
-"金庫強盗":["準重強盗罪","銃刀法違反","公務執行妨害罪"],
-"飛行場襲撃":["準重強盗罪","銃刀法違反","公務執行妨害罪","NPC殺人罪"],
-"アーティファクトヘイスト":["重強盗罪","銃刀法違反","公務執行妨害罪","NPC殺人罪"],
-"ユニオンヘイスト":["重強盗罪","銃刀法違反","公務執行妨害罪"],
-"パシフィック銀行強盗":["重強盗罪","銃刀法違反","公務執行妨害罪"]
+
+"軍事物資強奪":[
+"強盗罪",
+"銃刀法違反",
+"公務執行妨害罪",
+"NPC殺人罪"
+],
+
+"宝石店強盗":[
+"強盗罪",
+"銃刀法違反",
+"公務執行妨害罪"
+],
+
+"パレト銀行強盗":[
+"準重強盗罪",
+"銃刀法違反",
+"公務執行妨害罪"
+],
+
+"ボブキャット強盗":[
+"準重強盗罪",
+"銃刀法違反",
+"公務執行妨害罪",
+"NPC殺人罪"
+],
+
+"客船強盗":[
+"準重強盗罪",
+"銃刀法違反",
+"公務執行妨害罪",
+"NPC殺人罪"
+],
+
+"金庫強盗":[
+"準重強盗罪",
+"銃刀法違反",
+"公務執行妨害罪"
+],
+
+"飛行場襲撃":[
+"準重強盗罪",
+"銃刀法違反",
+"公務執行妨害罪",
+"NPC殺人罪"
+],
+
+"アーティファクトヘイスト":[
+"重強盗罪",
+"銃刀法違反",
+"公務執行妨害罪",
+"NPC殺人罪"
+],
+
+"ユニオンヘイスト":[
+"重強盗罪",
+"銃刀法違反",
+"公務執行妨害罪"
+],
+
+"パシフィック銀行強盗":[
+"重強盗罪",
+"銃刀法違反",
+"公務執行妨害罪"
+]
+
 };
 
 const grid = document.getElementById("grid");
 
 crimes.forEach((c,i)=>{
-  const div=document.createElement("div");
-  div.className="card";
-  div.innerHTML=c.special ? `${c.name}<br>数量計算` : `${c.name}<br>${c.fine.toLocaleString()}円`;
-  div.onclick=()=>toggle(i,div);
+
+  const div = document.createElement("div");
+
+  div.className = "card";
+
+  div.innerHTML = c.special
+  ? `${c.name}<br>数量計算`
+  : `${c.name}<br>${c.fine.toLocaleString()}円`;
+
+  div.onclick = ()=>toggle(i,div);
+
   grid.appendChild(div);
+
 });
 
-const presetArea=document.getElementById("presetArea");
+const presetArea = document.getElementById("presetArea");
 
 Object.keys(presets).forEach(name=>{
-  const btn=document.createElement("button");
-  btn.className="presetBtn";
-  btn.textContent=name;
-  btn.onclick=()=>applyPreset(name);
+
+  const btn = document.createElement("button");
+
+  btn.className = "presetBtn";
+
+  btn.textContent = name;
+
+  btn.onclick = ()=>applyPreset(name);
+
   presetArea.appendChild(btn);
+
 });
 
 function toggle(i,el){
+
   if(selected.has(i)){
+
     selected.delete(i);
     el.classList.remove("active");
+
   }else{
+
     selected.add(i);
     el.classList.add("active");
+
   }
+
   handleRobberyLock();
   calc();
+
 }
 
 function handleRobberyLock(){
-  const selectedRobbery=[...selected].find(i=>robberyGroup.includes(crimes[i].name));
+
+  const selectedRobbery = [...selected]
+  .find(i=>robberyGroup.includes(crimes[i].name));
 
   document.querySelectorAll(".card").forEach((el,i)=>{
-    const isRobbery=robberyGroup.includes(crimes[i].name);
-    if(selectedRobbery!==undefined){
-      if(isRobbery && i!==selectedRobbery){
+
+    const isRobbery = robberyGroup.includes(crimes[i].name);
+
+    if(selectedRobbery !== undefined){
+
+      if(isRobbery && i !== selectedRobbery){
+
         el.classList.add("disabled");
+
       }
+
     }else{
+
       el.classList.remove("disabled");
+
     }
+
   });
+
 }
 
 function applyPreset(name){
+
   resetAll();
-  const list=presets[name];
+
+  const list = presets[name];
 
   document.querySelectorAll(".card").forEach((el,i)=>{
+
     if(list.includes(crimes[i].name)){
+
       selected.add(i);
       el.classList.add("active");
+
     }
+
   });
 
   handleRobberyLock();
   calc();
+
 }
 
 function calc(){
-  let total=0;
-  let time=0;
+
+  let total = 0;
+  let time = 0;
 
   selected.forEach(i=>{
-    const c=crimes[i];
 
-    // 薬物（150単位・最低1・繰り越しなし）
-    if(c.special==="drug"){
-      const v=Number(document.getElementById("drug").value);
-      if(v>0){
-        let units=Math.floor(v/150);
-        if(units===0) units=1;
-        total+=units*1000000;
+    const c = crimes[i];
+
+    // 薬物
+    if(c.special === "drug"){
+
+      const v = Number(document.getElementById("drug").value);
+
+      if(v > 0){
+
+        let units = Math.floor(v / 150);
+
+        if(units === 0) units = 1;
+
+        total += units * 1000000;
+
       }
+
     }
 
-    // 素材（1000単位・最低1・繰り越しなし）
-    else if(c.special==="material"){
-      const v=Number(document.getElementById("material").value);
-      if(v>0){
-        let units=Math.floor(v/1000);
-        if(units===0) units=1;
-        total+=units*500000;
+    // 素材
+    else if(c.special === "material"){
+
+      const v = Number(document.getElementById("material").value);
+
+      if(v > 0){
+
+        let units = Math.floor(v / 1000);
+
+        if(units === 0) units = 1;
+
+        total += units * 500000;
+
       }
+
     }
 
     else{
-      total+=c.fine;
-      if(c.time>time) time=c.time;
+
+      total += c.fine;
+
+      if(c.time > time){
+
+        time = c.time;
+
+      }
+
     }
+
   });
 
   // 業務妨害
-  if(selected.has(crimes.findIndex(c=>c.name==="業務妨害罪"))){
-    total+=Number(document.getElementById("business").value);
+  if(selected.has(
+    crimes.findIndex(c=>c.name==="業務妨害罪")
+  )){
+
+    total += Number(
+      document.getElementById("business").value
+    );
+
   }
 
-  document.getElementById("total").textContent=total.toLocaleString();
-  document.getElementById("time").textContent=time;
+  document.getElementById("total").textContent =
+  total.toLocaleString();
+
+  document.getElementById("time").textContent =
+  time;
+
 }
 
 function resetAll(){
+
   selected.clear();
-  document.querySelectorAll(".card").forEach(el=>el.classList.remove("active","disabled"));
-  document.getElementById("drug").value=0;
-  document.getElementById("material").value=0;
-  document.getElementById("business").value=0;
+
+  document.querySelectorAll(".card").forEach(el=>{
+
+    el.classList.remove("active");
+    el.classList.remove("disabled");
+
+  });
+
+  document.getElementById("drug").value = 0;
+  document.getElementById("material").value = 0;
+  document.getElementById("business").value = 0;
+
   calc();
+
 }
+
+function openOshu(){
+
+  document.getElementById("oshuModal").style.display = "flex";
+
+}
+
+function closeOshu(){
+
+  document.getElementById("oshuModal").style.display = "none";
+
+}
+
 </script>
 
 </body>
